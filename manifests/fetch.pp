@@ -5,7 +5,7 @@
 # web proxy using $http_proxy if necessary.
 #
 # == Parameters:
-#  $source_hash:        MD5-sum of the content to be downloaded,
+#  $source_hash:        sha256-sum of the content to be downloaded,
 #                       if content exists, but does not match it is removed
 #                       before downloading
 #
@@ -209,8 +209,8 @@ define wget::fetch (
     exec { "wget-source_hash-check-${name}":
       command  => "test ! -e '${_destination}' || rm ${_destination}",
       path     => '/usr/bin:/usr/sbin:/bin:/usr/local/bin:/opt/local/bin',
-      # only remove destination if md5sum does not match $source_hash
-      unless   => "echo '${source_hash}  ${_destination}' | md5sum -c --quiet",
+      # only remove destination if sha256sum does not match $source_hash
+      unless   => "echo '${source_hash}  ${_destination}' | sha256sum -c --quiet",
       notify   => Exec["wget-${name}"],
       schedule => $schedule,
     }

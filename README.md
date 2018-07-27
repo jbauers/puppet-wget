@@ -91,7 +91,7 @@ this case you must inform the correct filename in the cache like this:
     }
 ```
 
-Checksum can be used in the `source_hash` parameter, with the MD5-sum of the content to be downloaded.
+Checksum can be used in the `source_hash` parameter, with the sha256-sum of the content to be downloaded.
 If content exists, but does not match it is removed before downloading.
 
 If you want to use your own unless condition, you can do it. This example uses wget to download the latest version of Wordpress to your destination folder only if the folder is empty (test used returns 1 if directory is empty or 0 if not).
