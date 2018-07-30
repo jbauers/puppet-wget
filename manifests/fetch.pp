@@ -5,9 +5,9 @@
 # web proxy using $http_proxy if necessary.
 #
 # == Parameters:
-#  $source_hash:        sha256-sum of the content to be downloaded,
+#  $source_hash:        checksum of the content to be downloaded,
 #                       if content exists, but does not match it is removed
-#                       before downloading
+#                       before downloading. md5 and sha256 supported.
 #
 ################################################################################
 define wget::fetch (
@@ -167,7 +167,12 @@ define wget::fetch (
       $command = "wget ${verbose_option}${nocheckcert_option}${no_cookies_option}${header_option}${user_option}${output_option}${flags_joined} \"${source}\""
     }
     default: {
-      $command = "wget ${verbose_option}${nocheckcert_option}${no_cookies_option}${header_option}${user_option}${output_option}${flags_joined} \"${source}\" && echo '${source_hash}  ${_destination}' | md5sum -c --quiet"
+      # TODO: Do this with Puppet, add support for other types.
+      exec { "wget-source_hash-type-${name}":
+        command => "i=$(printf '${source_hash}' | wc -c); if [ \"\$i\" -eq 64 ]; then export CHECKSUM_VERIFIER='sha256sum'; elif [ \"\$i\" -eq 32 ]; then export CHECKSUM_VERIFIER='md5sum'; else echo 'Wrong number of bits for the checksum. Check for whitespace.' && exit 1; fi",
+      }
+
+      $command = "wget ${verbose_option}${nocheckcert_option}${no_cookies_option}${header_option}${user_option}${output_option}${flags_joined} \"${source}\" && echo '${source_hash}  ${_destination}' | \$CHECKSUM_VERIFIER -c --quiet"
     }
   }
 
@@ -206,14 +211,15 @@ define wget::fetch (
 
   # remove destination if source_hash is invalid
   if $source_hash != undef {
-    exec { "source_hash-type-${name}":
-      command => "n=$(echo '${source_hash}' | wc -c); if [ "$n" -gt 33 ]; then export COMMAND='sha256sum'; else export COMMAND='md5sum'; fi",
+    # TODO: Do this with Puppet, add support for other types.
+    exec { "wget-source_hash-type-${name}":
+      command => "i=$(printf '${source_hash}' | wc -c); if [ \"\$i\" -eq 64 ]; then export CHECKSUM_VERIFIER='sha256sum'; elif [ \"\$i\" -eq 32 ]; then export CHECKSUM_VERIFIER='md5sum'; else echo 'Wrong number of bits for the checksum. Check for whitespace.' && exit 1; fi",
     } ->
     exec { "wget-source_hash-check-${name}":
       command  => "test ! -e '${_destination}' || rm ${_destination}",
       path     => '/usr/bin:/usr/sbin:/bin:/usr/local/bin:/opt/local/bin',
-      # only remove destination if sha256sum does not match $source_hash
-      unless   => "echo '${source_hash}  ${_destination}' | \$COMMAND -c --quiet",
+      # only remove destination if checksum does not match $source_hash
+      unless   => "echo '${source_hash}  ${_destination}' | \$CHECKSUM_VERIFIER -c --quiet",
       notify   => Exec["wget-${name}"],
       schedule => $schedule,
     }
